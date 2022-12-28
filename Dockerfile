@@ -1,7 +1,7 @@
-FROM node:16
+FROM node:16.14.2-slim
 
 # Create app directory
-WORKDIR /App
+WORKDIR /app
 
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
