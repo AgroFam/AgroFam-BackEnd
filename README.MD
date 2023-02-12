@@ -14,7 +14,7 @@ This repository consist of code for the backend service of AgroFam built with ex
 To run this project, you will need to add the following environment variables to your .env file
 
 ```
-CONNECTION_URL=mongodb+srv://admin:zKWnWCD3iZvKTJm@cluster0.uftjm.mongodb.net/?retryWrites=true&w=majority
+CONNECTION_URL=mongodb+srv://Classmates:Vupr%401234@cluster0.0egfxmw.mongodb.net/?retryWrites=true&w=majority
 IMAGEKIT_PRIVATE_KEY=private_TRnQE+3cqcxgANLpKKnvLo2ijvg=
 IMAGEKIT_PUBLIC_KEY=public_zSDFEWbcrKQG1w9MrW09QTcK0N4=
 IMAGEKIT_URL_ENDPOINT=nmtrlmn4bwh
