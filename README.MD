@@ -55,3 +55,6 @@ To run tests, run the following command
   npm run test
 ```
 
+## License
+Copyright (c) 2022 Uday Girhepunje
+[MIT](./LICENSE)
