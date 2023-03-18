@@ -35,8 +35,10 @@ export const getPost = async (req, res) => {
     const post = await PostMessage.findById(id);
 
     res.status(200).json(post);
+    return post;
   } catch (error) {
     res.status(404).json({ message: error.message });
+    return error;
   }
 };
 
