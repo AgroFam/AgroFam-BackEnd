@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import PostMessage from '../models/postMessage.js';
 import ImageKit from 'imagekit';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 const router = express.Router();
 
@@ -23,10 +24,27 @@ const uploadFileBase64 = async (
   const response = await imagekitInstance.upload({
     file: file_base64,
     fileName: fileName,
-    folder: 'NotionOfNetizen',
+    folder: 'AgroFam',
     tags: tags,
   });
   return response;
+};
+
+const getTranslations = async (text, languages) => {
+  let data = JSON.stringify({
+    text: text,
+    dest_languages: languages.join(','),
+  });
+
+  let config = {
+    method: 'get',
+    url: 'https://nlp-production.up.railway.app/translate',
+    headers: { 'Content-Type': 'application/json' },
+    data: data,
+  };
+
+  const response = await axios.request(config);
+  return response.data;
 };
 
 export const getPost = async (req, res) => {
@@ -54,13 +72,11 @@ export const getPosts = async (req, res) => {
       .limit(LIMIT)
       .skip(startIndex);
 
-    res
-      .status(200)
-      .json({
-        data: posts,
-        currentPage: Number(page),
-        numberOfPages: Math.ceil(total / LIMIT),
-      });
+    res.status(200).json({
+      data: posts,
+      currentPage: Number(page),
+      numberOfPages: Math.ceil(total / LIMIT),
+    });
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
@@ -80,19 +96,63 @@ export const getPostsBySearch = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const post = req.body;
+  const { title, message, selectedFile, tags, name } = req.body;
 
-  var base64Img = post.selectedFile;
+  var base64Img = selectedFile;
 
   const uploadResponse_base64 = await uploadFileBase64(
     imagekit,
     base64Img,
-    `${post.title}`,
-    post.tags
+    `${title}`,
+    tags
   );
 
+  const languages = [
+    'mr',
+    'hi',
+    'gu',
+    'ta',
+    'te',
+    'pa',
+    'ml',
+    'kn',
+    'bn',
+    'en',
+  ];
+
+  let translations1;
+  let translations2;
+
+  try {
+    translations1 = await getTranslations(
+      JSON.stringify(message.substring(0, 4000)),
+      languages
+    );
+  } catch (error) {
+    console.log(error);
+  }
+
+  try {
+    translations2 = await getTranslations(
+      JSON.stringify(message.substring(4001, 8000)),
+      languages
+    );
+  } catch (error) {
+    console.log(error);
+  }
+
+  let allTranslations = {};
+  for (const key in translations1) {
+    if (translations1.hasOwnProperty(key) && translations2.hasOwnProperty(key)) {
+      allTranslations[key] = translations1[key] + translations2[key];
+    }
+  }
+
   const newPost = new PostMessage({
-    ...post,
+    title,
+    name,
+    tags,
+    message: allTranslations,
     creator: req.userId,
     selectedFile: uploadResponse_base64.url,
     selectedFileId: uploadResponse_base64.fileId,
@@ -133,7 +193,7 @@ export const deletePost = async (req, res) => {
 
     res.json({ message: 'Post deleted Succesfully' });
   } catch (error) {
-    console.log(error);
+    res.json({ error });
   }
 };
 
