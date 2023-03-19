@@ -9,6 +9,8 @@ const router = express.Router();
 
 dotenv.config();
 
+const languages = ['mr', 'hi', 'gu', 'ta', 'te', 'pa', 'ml', 'kn', 'bn', 'en'];
+
 var imagekit = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
   privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
@@ -31,20 +33,24 @@ const uploadFileBase64 = async (
 };
 
 const getTranslations = async (text, languages) => {
-  let data = JSON.stringify({
-    text: text,
-    dest_languages: languages.join(','),
-  });
+  try {
+    const data = JSON.stringify({
+      text: JSON.stringify(text),
+      dest_languages: languages.join(','),
+    });
 
-  let config = {
-    method: 'get',
-    url: 'https://nlp-production.up.railway.app/translate',
-    headers: { 'Content-Type': 'application/json' },
-    data: data,
-  };
+    const config = {
+      method: 'get',
+      url: 'https://nlp-production.up.railway.app/translate',
+      headers: { 'Content-Type': 'application/json' },
+      data: data,
+    };
 
-  const response = await axios.request(config);
-  return response.data;
+    const response = await axios.request(config);
+    return response.data;
+  } catch (error) {
+    return {};
+  }
 };
 
 export const getPost = async (req, res) => {
@@ -108,23 +114,11 @@ export const createPost = async (req, res) => {
       tags
     );
 
-    const languages = [
-      'mr',
-      'hi',
-      'gu',
-      'ta',
-      'te',
-      'pa',
-      'ml',
-      'kn',
-      'bn',
-      'en',
-    ];
+    // Getting translation for title
+    const titleTranslation = await getTranslations(title, languages);
 
-    let translations1;
-    let translations2;
-
-    // console.log(message, '\n\n')
+    if (Object.entries(titleTranslation).length === 0)
+      throw new Error('Translation Failed for title');
 
     // Removing newline characters and extra spaces
     const sanitizedMessage = message
@@ -132,58 +126,64 @@ export const createPost = async (req, res) => {
       .replace(/"/g, "'")
       .replace(/&nbsp;+/g, '')
       .trim();
-    // console.log(sanitizedMessage, '\n\n')
 
-    try {
-      translations1 = await getTranslations(
-        JSON.stringify(sanitizedMessage.substring(0, 4000)),
-        languages
-      );
-    } catch (error) {
-      console.log(error);
-    }
+    // Getting translation for the article in batches
+    const translations1 = await getTranslations(
+      sanitizedMessage.substring(0, 4000),
+      languages
+    );
+    if (Object.entries(translations1).length === 0)
+      throw new Error('Translation Failed for translations batch 1');
 
-    try {
-      translations2 = await getTranslations(
-        JSON.stringify(sanitizedMessage.substring(4001, 8000)),
-        languages
-      );
-    } catch (error) {
-      console.log(error);
-    }
-
+    let translations2 = {};
     let allTranslations = {};
-    for (const key in translations1) {
-      if (
-        translations1.hasOwnProperty(key) &&
-        translations2.hasOwnProperty(key)
-      ) {
-        allTranslations[key] = translations1[key] + translations2[key];
+    // Checking if the 2nd batch call is really needed?
+    if (message.length >= 4000) {
+      translations2 = await getTranslations(
+        sanitizedMessage.substring(4001, 8000),
+        languages
+      );
+      if (Object.entries(translations2).length === 0)
+        throw new Error('Translation Failed for translations batch 2');
+
+      // Concatenating the translations from 2 batches
+      for (const key in translations1) {
+        if (
+          translations1.hasOwnProperty(key) &&
+          translations2.hasOwnProperty(key)
+        ) {
+          allTranslations[key] = translations1[key] + translations2[key];
+        }
       }
     }
 
-    // console.log(allTranslations.english)
-
+    // Creating new post object to store in DB
     const newPost = new PostMessage({
-      title,
+      title: titleTranslation,
       name,
       tags,
-      message: allTranslations,
+      message:
+        Object.entries(allTranslations).length !== 0
+          ? allTranslations
+          : translations1,
       creator: req.userId,
       selectedFile: uploadResponse_base64.url,
       selectedFileId: uploadResponse_base64.fileId,
       createdAt: new Date().toISOString(),
     });
 
+    // Checking if any translation call failed and the translations object is empty
     if (Object.entries(allTranslations).length !== 0) {
       await newPost.save();
+    } else if (Object.entries(translations1).length !== 0) {
+      await newPost.save();
     } else {
-      throw new Error('Translation Failed');
+      throw new Error('Failed to create post');
     }
 
     res.status(201).json(newPost);
   } catch (error) {
-    res.status(409).json({ message: error.messsage });
+    res.status(500).json({ message: error.messsage });
   }
 };
 
