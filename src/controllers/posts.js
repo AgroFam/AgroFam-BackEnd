@@ -96,71 +96,91 @@ export const getPostsBySearch = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const { title, message, selectedFile, tags, name } = req.body;
-
-  var base64Img = selectedFile;
-
-  const uploadResponse_base64 = await uploadFileBase64(
-    imagekit,
-    base64Img,
-    `${title}`,
-    tags
-  );
-
-  const languages = [
-    'mr',
-    'hi',
-    'gu',
-    'ta',
-    'te',
-    'pa',
-    'ml',
-    'kn',
-    'bn',
-    'en',
-  ];
-
-  let translations1;
-  let translations2;
-
   try {
-    translations1 = await getTranslations(
-      JSON.stringify(message.substring(0, 4000)),
-      languages
-    );
-  } catch (error) {
-    console.log(error);
-  }
+    const { title, message, selectedFile, tags, name } = req.body;
 
-  try {
-    translations2 = await getTranslations(
-      JSON.stringify(message.substring(4001, 8000)),
-      languages
-    );
-  } catch (error) {
-    console.log(error);
-  }
+    var base64Img = selectedFile;
 
-  let allTranslations = {};
-  for (const key in translations1) {
-    if (translations1.hasOwnProperty(key) && translations2.hasOwnProperty(key)) {
-      allTranslations[key] = translations1[key] + translations2[key];
+    const uploadResponse_base64 = await uploadFileBase64(
+      imagekit,
+      base64Img,
+      `${title}`,
+      tags
+    );
+
+    const languages = [
+      'mr',
+      'hi',
+      'gu',
+      'ta',
+      'te',
+      'pa',
+      'ml',
+      'kn',
+      'bn',
+      'en',
+    ];
+
+    let translations1;
+    let translations2;
+
+    // console.log(message, '\n\n')
+
+    // Removing newline characters and extra spaces
+    const sanitizedMessage = message
+      .replace(/\n/g, '')
+      .replace(/"/g, "'")
+      .replace(/&nbsp;+/g, '')
+      .trim();
+    // console.log(sanitizedMessage, '\n\n')
+
+    try {
+      translations1 = await getTranslations(
+        JSON.stringify(sanitizedMessage.substring(0, 4000)),
+        languages
+      );
+    } catch (error) {
+      console.log(error);
     }
-  }
 
-  const newPost = new PostMessage({
-    title,
-    name,
-    tags,
-    message: allTranslations,
-    creator: req.userId,
-    selectedFile: uploadResponse_base64.url,
-    selectedFileId: uploadResponse_base64.fileId,
-    createdAt: new Date().toISOString(),
-  });
+    try {
+      translations2 = await getTranslations(
+        JSON.stringify(sanitizedMessage.substring(4001, 8000)),
+        languages
+      );
+    } catch (error) {
+      console.log(error);
+    }
 
-  try {
-    await newPost.save();
+    let allTranslations = {};
+    for (const key in translations1) {
+      if (
+        translations1.hasOwnProperty(key) &&
+        translations2.hasOwnProperty(key)
+      ) {
+        allTranslations[key] = translations1[key] + translations2[key];
+      }
+    }
+
+    // console.log(allTranslations.english)
+
+    const newPost = new PostMessage({
+      title,
+      name,
+      tags,
+      message: allTranslations,
+      creator: req.userId,
+      selectedFile: uploadResponse_base64.url,
+      selectedFileId: uploadResponse_base64.fileId,
+      createdAt: new Date().toISOString(),
+    });
+
+    if (Object.entries(allTranslations).length !== 0) {
+      await newPost.save();
+    } else {
+      throw new Error('Translation Failed');
+    }
+
     res.status(201).json(newPost);
   } catch (error) {
     res.status(409).json({ message: error.messsage });
