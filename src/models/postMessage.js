@@ -1,8 +1,30 @@
 import mongoose from 'mongoose';
 
 const postSchema = mongoose.Schema({
-  title: String,
-  message: String,
+  title: {
+    english: String,
+    hindi: String,
+    marathi: String,
+    gujarati: String,
+    punjabi: String,
+    tamil: String,
+    telugu: String,
+    bengali: String,
+    kannada: String,
+    malayalam: String,
+  },
+  message: {
+    english: String,
+    hindi: String,
+    marathi: String,
+    gujarati: String,
+    punjabi: String,
+    tamil: String,
+    telugu: String,
+    bengali: String,
+    kannada: String,
+    malayalam: String,
+  },
   name: String,
   creator: String,
   creatorImg: String,

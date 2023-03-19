@@ -3,10 +3,13 @@ import mongoose from 'mongoose';
 import PostMessage from '../models/postMessage.js';
 import ImageKit from 'imagekit';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 const router = express.Router();
 
 dotenv.config();
+
+const languages = ['mr', 'hi', 'gu', 'ta', 'te', 'pa', 'ml', 'kn', 'bn', 'en'];
 
 var imagekit = new ImageKit({
   publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
@@ -23,10 +26,31 @@ const uploadFileBase64 = async (
   const response = await imagekitInstance.upload({
     file: file_base64,
     fileName: fileName,
-    folder: 'NotionOfNetizen',
+    folder: 'AgroFam',
     tags: tags,
   });
   return response;
+};
+
+const getTranslations = async (text, languages) => {
+  try {
+    const data = JSON.stringify({
+      text: JSON.stringify(text),
+      dest_languages: languages.join(','),
+    });
+
+    const config = {
+      method: 'get',
+      url: 'https://nlp-production.up.railway.app/translate',
+      headers: { 'Content-Type': 'application/json' },
+      data: data,
+    };
+
+    const response = await axios.request(config);
+    return response.data;
+  } catch (error) {
+    return {};
+  }
 };
 
 export const getPost = async (req, res) => {
@@ -54,13 +78,11 @@ export const getPosts = async (req, res) => {
       .limit(LIMIT)
       .skip(startIndex);
 
-    res
-      .status(200)
-      .json({
-        data: posts,
-        currentPage: Number(page),
-        numberOfPages: Math.ceil(total / LIMIT),
-      });
+    res.status(200).json({
+      data: posts,
+      currentPage: Number(page),
+      numberOfPages: Math.ceil(total / LIMIT),
+    });
   } catch (error) {
     res.status(404).json({ message: error.message });
   }
@@ -80,30 +102,88 @@ export const getPostsBySearch = async (req, res) => {
 };
 
 export const createPost = async (req, res) => {
-  const post = req.body;
-
-  var base64Img = post.selectedFile;
-
-  const uploadResponse_base64 = await uploadFileBase64(
-    imagekit,
-    base64Img,
-    `${post.title}`,
-    post.tags
-  );
-
-  const newPost = new PostMessage({
-    ...post,
-    creator: req.userId,
-    selectedFile: uploadResponse_base64.url,
-    selectedFileId: uploadResponse_base64.fileId,
-    createdAt: new Date().toISOString(),
-  });
-
   try {
-    await newPost.save();
+    const { title, message, selectedFile, tags, name } = req.body;
+
+    var base64Img = selectedFile;
+
+    const uploadResponse_base64 = await uploadFileBase64(
+      imagekit,
+      base64Img,
+      `${title}`,
+      tags
+    );
+
+    // Getting translation for title
+    const titleTranslation = await getTranslations(title, languages);
+
+    if (Object.entries(titleTranslation).length === 0)
+      throw new Error('Translation Failed for title');
+
+    // Removing newline characters and extra spaces
+    const sanitizedMessage = message
+      .replace(/\n/g, '')
+      .replace(/"/g, "'")
+      .replace(/&nbsp;+/g, '')
+      .trim();
+
+    // Getting translation for the article in batches
+    const translations1 = await getTranslations(
+      sanitizedMessage.substring(0, 4000),
+      languages
+    );
+    if (Object.entries(translations1).length === 0)
+      throw new Error('Translation Failed for translations batch 1');
+
+    let translations2 = {};
+    let allTranslations = {};
+    // Checking if the 2nd batch call is really needed?
+    if (message.length >= 4000) {
+      translations2 = await getTranslations(
+        sanitizedMessage.substring(4001, 8000),
+        languages
+      );
+      if (Object.entries(translations2).length === 0)
+        throw new Error('Translation Failed for translations batch 2');
+
+      // Concatenating the translations from 2 batches
+      for (const key in translations1) {
+        if (
+          translations1.hasOwnProperty(key) &&
+          translations2.hasOwnProperty(key)
+        ) {
+          allTranslations[key] = translations1[key] + translations2[key];
+        }
+      }
+    }
+
+    // Creating new post object to store in DB
+    const newPost = new PostMessage({
+      title: titleTranslation,
+      name,
+      tags,
+      message:
+        Object.entries(allTranslations).length !== 0
+          ? allTranslations
+          : translations1,
+      creator: req.userId,
+      selectedFile: uploadResponse_base64.url,
+      selectedFileId: uploadResponse_base64.fileId,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Checking if any translation call failed and the translations object is empty
+    if (Object.entries(allTranslations).length !== 0) {
+      await newPost.save();
+    } else if (Object.entries(translations1).length !== 0) {
+      await newPost.save();
+    } else {
+      throw new Error('Failed to create post');
+    }
+
     res.status(201).json(newPost);
   } catch (error) {
-    res.status(409).json({ message: error.messsage });
+    res.status(500).json({ message: error.messsage });
   }
 };
 
@@ -133,7 +213,7 @@ export const deletePost = async (req, res) => {
 
     res.json({ message: 'Post deleted Succesfully' });
   } catch (error) {
-    console.log(error);
+    res.json({ error });
   }
 };
 
