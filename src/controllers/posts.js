@@ -91,10 +91,34 @@ export const getPosts = async (req, res) => {
 export const getPostsBySearch = async (req, res) => {
   const { searchQuery, tags } = req.query;
   try {
-    const title = new RegExp(searchQuery, 'i');
-    const posts = await PostMessage.find({
-      $or: [{ title }, { tags: { $in: tags.split(',') } }],
-    }).sort({ _id: -1 });
+    const regexQuery = new RegExp(searchQuery, 'i');
+    const query = {
+      $or: [
+        { "title.english": { $regex: regexQuery } },
+        { "title.hindi": { $regex: regexQuery } },
+        { "title.marathi": { $regex: regexQuery } },
+        { "title.gujarati": { $regex: regexQuery } },
+        { "title.punjabi": { $regex: regexQuery } },
+        { "title.tamil": { $regex: regexQuery } },
+        { "title.telugu": { $regex: regexQuery } },
+        { "title.bengali": { $regex: regexQuery } },
+        { "title.kannada": { $regex: regexQuery } },
+        { "title.malayalam": { $regex: regexQuery } },
+        { "message.english": { $regex: regexQuery } },
+        { "message.hindi": { $regex: regexQuery } },
+        { "message.marathi": { $regex: regexQuery } },
+        { "message.gujarati": { $regex: regexQuery } },
+        { "message.punjabi": { $regex: regexQuery } },
+        { "message.tamil": { $regex: regexQuery } },
+        { "message.telugu": { $regex: regexQuery } },
+        { "message.bengali": { $regex: regexQuery } },
+        { "message.kannada": { $regex: regexQuery } },
+        { "message.malayalam": { $regex: regexQuery } },
+        { tags: { $in: tags.split(',') } }
+      ],
+    };
+
+    const posts = await PostMessage.find(query).sort({ _id: -1 });
     res.json({ data: posts });
   } catch (error) {
     res.status(404).json({ message: error.message });
