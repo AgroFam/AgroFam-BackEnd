@@ -91,10 +91,34 @@ export const getPosts = async (req, res) => {
 export const getPostsBySearch = async (req, res) => {
   const { searchQuery, tags } = req.query;
   try {
-    const title = new RegExp(searchQuery, 'i');
-    const posts = await PostMessage.find({
-      $or: [{ title }, { tags: { $in: tags.split(',') } }],
-    }).sort({ _id: -1 });
+    const regexQuery = new RegExp(searchQuery, 'i');
+    const query = {
+      $or: [
+        { 'title.english': { $regex: regexQuery } },
+        { 'title.hindi': { $regex: regexQuery } },
+        { 'title.marathi': { $regex: regexQuery } },
+        { 'title.gujarati': { $regex: regexQuery } },
+        { 'title.punjabi': { $regex: regexQuery } },
+        { 'title.tamil': { $regex: regexQuery } },
+        { 'title.telugu': { $regex: regexQuery } },
+        { 'title.bengali': { $regex: regexQuery } },
+        { 'title.kannada': { $regex: regexQuery } },
+        { 'title.malayalam': { $regex: regexQuery } },
+        { 'message.english': { $regex: regexQuery } },
+        { 'message.hindi': { $regex: regexQuery } },
+        { 'message.marathi': { $regex: regexQuery } },
+        { 'message.gujarati': { $regex: regexQuery } },
+        { 'message.punjabi': { $regex: regexQuery } },
+        { 'message.tamil': { $regex: regexQuery } },
+        { 'message.telugu': { $regex: regexQuery } },
+        { 'message.bengali': { $regex: regexQuery } },
+        { 'message.kannada': { $regex: regexQuery } },
+        { 'message.malayalam': { $regex: regexQuery } },
+        { tags: { $in: tags.split(',') } },
+      ],
+    };
+
+    const posts = await PostMessage.find(query).sort({ _id: -1 });
     res.json({ data: posts });
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -118,7 +142,7 @@ export const createPost = async (req, res) => {
     const titleTranslation = await getTranslations(title, languages);
 
     if (Object.entries(titleTranslation).length === 0)
-      throw new Error('Translation Failed for title');
+      return res.status(500).json({ message: 'Translation Failed for title' });
 
     // Removing newline characters and extra spaces
     const sanitizedMessage = message
@@ -133,7 +157,9 @@ export const createPost = async (req, res) => {
       languages
     );
     if (Object.entries(translations1).length === 0)
-      throw new Error('Translation Failed for translations batch 1');
+      return res
+        .status(500)
+        .json({ message: 'Translation Failed for translations batch 1' });
 
     let translations2 = {};
     let allTranslations = {};
@@ -144,7 +170,9 @@ export const createPost = async (req, res) => {
         languages
       );
       if (Object.entries(translations2).length === 0)
-        throw new Error('Translation Failed for translations batch 2');
+        return res
+          .status(500)
+          .json({ message: 'Translation Failed for translations batch 2' });
 
       // Concatenating the translations from 2 batches
       for (const key in translations1) {
@@ -178,7 +206,7 @@ export const createPost = async (req, res) => {
     } else if (Object.entries(translations1).length !== 0) {
       await newPost.save();
     } else {
-      throw new Error('Failed to create post');
+      return res.status(500).json({ message: 'Failed to Create Post' });
     }
 
     res.status(201).json(newPost);
