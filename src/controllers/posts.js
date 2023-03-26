@@ -142,7 +142,7 @@ export const createPost = async (req, res) => {
     const titleTranslation = await getTranslations(title, languages);
 
     if (Object.entries(titleTranslation).length === 0)
-      throw new Error('Translation Failed for title');
+      return res.status(500).json({ message: 'Translation Failed for title' });
 
     // Removing newline characters and extra spaces
     const sanitizedMessage = message
@@ -157,7 +157,7 @@ export const createPost = async (req, res) => {
       languages
     );
     if (Object.entries(translations1).length === 0)
-      throw new Error('Translation Failed for translations batch 1');
+      return res.status(500).json({ message: 'Translation Failed for translations batch 1' });
 
     let translations2 = {};
     let allTranslations = {};
@@ -168,7 +168,7 @@ export const createPost = async (req, res) => {
         languages
       );
       if (Object.entries(translations2).length === 0)
-        throw new Error('Translation Failed for translations batch 2');
+      return res.status(500).json({ message: 'Translation Failed for translations batch 2' });
 
       // Concatenating the translations from 2 batches
       for (const key in translations1) {
@@ -202,7 +202,7 @@ export const createPost = async (req, res) => {
     } else if (Object.entries(translations1).length !== 0) {
       await newPost.save();
     } else {
-      throw new Error('Failed to create post');
+      return res.status(500).json({ message: 'Failed to Create Post' });
     }
 
     res.status(201).json(newPost);
