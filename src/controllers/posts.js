@@ -91,7 +91,8 @@ export const getPosts = async (req, res) => {
 export const getPostsBySearch = async (req, res) => {
   const { searchQuery, tags } = req.query;
   try {
-    const regexQuery = new RegExp(searchQuery, 'i');
+    const cleanSearchQuery = searchQuery.replace(/_/g, ' ');
+    const regexQuery = new RegExp(cleanSearchQuery, 'i');
     const query = {
       $or: [
         { 'title.english': { $regex: regexQuery } },
