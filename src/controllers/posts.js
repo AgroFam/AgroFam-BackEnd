@@ -55,8 +55,23 @@ const getTranslations = async (text, languages) => {
 
 export const getPost = async (req, res) => {
   const { id } = req.params;
+  const { lang } = req.query;
   try {
-    const post = await PostMessage.findById(id);
+    const projection = {
+      [`title.${lang}`]: 1,
+      [`message.${lang}`]: 1,
+      name: 1,
+      creator: 1,
+      creatorImg: 1,
+      tags: 1,
+      selectedFile: 1,
+      likes: 1,
+      comments: 1,
+      createdAt: 1,
+      selectedFileId: 1
+    }
+
+    const post = await PostMessage.findById(id, projection);
 
     res.status(200).json(post);
     return post;
@@ -67,13 +82,28 @@ export const getPost = async (req, res) => {
 };
 
 export const getPosts = async (req, res) => {
-  const { page } = req.query;
+  const { page, lang } = req.query;
   try {
     const LIMIT = 12;
     const startIndex = (Number(page) - 1) * LIMIT;
     const total = await PostMessage.countDocuments({});
 
-    const posts = await PostMessage.find()
+
+    const projection = {
+      [`title.${lang}`]: 1,
+      [`message.${lang}`]: 1,
+      name: 1,
+      creator: 1,
+      creatorImg: 1,
+      tags: 1,
+      selectedFile: 1,
+      likes: 1,
+      comments: 1,
+      createdAt: 1,
+      selectedFileId: 1
+    }
+
+    const posts = await PostMessage.find({}, projection)
       .sort({ _id: -1 })
       .limit(LIMIT)
       .skip(startIndex);
@@ -89,7 +119,7 @@ export const getPosts = async (req, res) => {
 };
 
 export const getPostsBySearch = async (req, res) => {
-  const { searchQuery, tags } = req.query;
+  const { searchQuery, tags, lang } = req.query;
   try {
     const cleanSearchQuery = searchQuery.replace(/_/g, ' ');
     const regexQuery = new RegExp(cleanSearchQuery, 'i');
@@ -115,11 +145,27 @@ export const getPostsBySearch = async (req, res) => {
         { 'message.bengali': { $regex: regexQuery } },
         { 'message.kannada': { $regex: regexQuery } },
         { 'message.malayalam': { $regex: regexQuery } },
+        { comments: { $elemMatch: { $regex: regexQuery } } },
+        { name: { $regex: regexQuery } },
         { tags: { $in: tags.split(',') } },
       ],
     };
 
-    const posts = await PostMessage.find(query).sort({ _id: -1 });
+    const projection = {
+      [`title.${lang}`]: 1,
+      [`message.${lang}`]: 1,
+      name: 1,
+      creator: 1,
+      creatorImg: 1,
+      tags: 1,
+      selectedFile: 1,
+      likes: 1,
+      comments: 1,
+      createdAt: 1,
+      selectedFileId: 1
+    }
+
+    const posts = await PostMessage.find(query, projection).sort({ _id: -1 });
     res.json({ data: posts });
   } catch (error) {
     res.status(404).json({ message: error.message });
@@ -128,7 +174,8 @@ export const getPostsBySearch = async (req, res) => {
 
 export const createPost = async (req, res) => {
   try {
-    const { title, message, selectedFile, tags, name } = req.body;
+    console.log(req.body);
+    const { title, message, selectedFile, tags, name, createrImg } = req.body;
 
     var base64Img = selectedFile;
 
@@ -196,6 +243,7 @@ export const createPost = async (req, res) => {
           ? allTranslations
           : translations1,
       creator: req.userId,
+      createrImg,
       selectedFile: uploadResponse_base64.url,
       selectedFileId: uploadResponse_base64.fileId,
       createdAt: new Date().toISOString(),
