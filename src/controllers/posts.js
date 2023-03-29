@@ -115,6 +115,7 @@ export const getPostsBySearch = async (req, res) => {
         { 'message.bengali': { $regex: regexQuery } },
         { 'message.kannada': { $regex: regexQuery } },
         { 'message.malayalam': { $regex: regexQuery } },
+        { 'creator': { $regex: regexQuery } },
         { tags: { $in: tags.split(',') } },
       ],
     };
@@ -128,7 +129,8 @@ export const getPostsBySearch = async (req, res) => {
 
 export const createPost = async (req, res) => {
   try {
-    const { title, message, selectedFile, tags, name } = req.body;
+    console.log(req.body);
+    const { title, message, selectedFile, tags, name, createrImg } = req.body;
 
     var base64Img = selectedFile;
 
@@ -196,6 +198,7 @@ export const createPost = async (req, res) => {
           ? allTranslations
           : translations1,
       creator: req.userId,
+      createrImg,
       selectedFile: uploadResponse_base64.url,
       selectedFileId: uploadResponse_base64.fileId,
       createdAt: new Date().toISOString(),
