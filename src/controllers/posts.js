@@ -175,7 +175,7 @@ export const getPostsBySearch = async (req, res) => {
 export const createPost = async (req, res) => {
   try {
     console.log(req.body);
-    const { title, message, selectedFile, tags, name, createrImg } = req.body;
+    const { title, message, selectedFile, tags, name, creatorImg } = req.body;
 
     var base64Img = selectedFile;
 
