@@ -243,7 +243,7 @@ export const createPost = async (req, res) => {
           ? allTranslations
           : translations1,
       creator: req.userId,
-      createrImg,
+      creatorImg,
       selectedFile: uploadResponse_base64.url,
       selectedFileId: uploadResponse_base64.fileId,
       createdAt: new Date().toISOString(),
