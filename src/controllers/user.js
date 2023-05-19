@@ -114,7 +114,7 @@ export const googleSignIn = async (req, res) => {
         { new: true }
       );
     } else {
-      created = await User.create({
+      result = await User.create({
         email,
         name,
         picture,
