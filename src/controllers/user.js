@@ -93,7 +93,7 @@ export const signup = async (req, res) => {
 
 export const googleSignIn = async (req, res) => {
   try {
-    const { email, name, picture, given_name, family_name } = jwt_decode(
+    const { email, name, picture, given_name, family_name, email_verified } = jwt_decode(
       req.body.token
     );
 
